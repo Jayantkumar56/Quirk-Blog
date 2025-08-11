@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compile-Time String</title>
+    <link rel="stylesheet" href="../styleReset.css">
+    <link id="hljs-theme" rel="stylesheet" href="">
+    <link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+    <header id="hero">
+        <nav class="flex-container">
+            <ul role="list" class="flex-container">
+                <li><a href="https://github.com/Jayantkumar56/QkTraits/blob/master" class="button btn-github"><p>Git-Hub</p></a></li>
+                <li><a href="../index.html" class="button btn-home"><p>Home</p></a></li>
+            </ul>
+
+            <div  id="toggle-theme" class="color-mode-toggle">
+            </div>
+        </nav>
+
+        <div class="hero">
+            <h1 class="main-heading">
+                <span>Compile Time Strings  in C++: </span>
+                <span>A Practical Guide</span>
+            </h1>
+
+            <div class="hero-content">
+                <p>Ever wanted to pass a string, like "hello", as a template parameter in C++? If you've tried, you've likely run into a frustrating compiler error. Standard C++ doesn't allow string literals or const char* as template parameters. But with modern C++ features, we can build an elegant solution.</p> 
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section>
+            <h2># The Core Problem: Why Can't We Use String Literals?</h2>
+
+            <div class="section-content">
+                <p>To understand why we need our StringLiteral class, we first need to look at Non-Type Template Parameters (NTTPs). These aren't new, they've been a fundamental part of C++ since C++98.</p>
+                <p>You've already used them, probably without thinking much about it. The most common example is std::array.</p>
+    
+                <pre class=" code-block"><code class="language-cpp code-block">
+#include &lt;array&gt;
+
+// T is a TYPE parameter (e.g., int)
+// N is a NON-TYPE parameter (e.g., 5)
+template&lt;typename T, size_t N&gt;
+class std::array;  
+
+// We provide a type 'int' and a value '10'
+std::array&lt;int, 10&gt; my_array;
+                </code></pre>
+    
+                <div class="list">
+                    <p>For decades, the C++ standard was very strict about what kinds of non-type parameters were allowed in template arguments.. Before C++20, the list was mostly limited to:</p>
+                    <ul>
+                        <li>Integral types (like int, size_t, bool).</li>
+                        <li>Enumeration types.</li>
+                        <li>Pointers and references to objects or functions with external linkage.</li>
+                    </ul>
+                </div>
+                
+                <p>A string literal, like "hello", has internal linkage. This means it's essentially private to its source file (.cpp file). The compiler is free to store it however it wants, and it might even merge identical string literals from different files into a single location. Because a string literal doesn't have a stable, unique address across the entire program (i.e., external linkage), a pointer to it was forbidden as a template argument.</p>
+                <p>Due to this limitation we couldn't just write MyTemplate<"hello">. The rules of the language forbade it. We were stuck—until C++20 expanded the rules for what kind of types could be used as NTTPs, opening the door for our StringLiteral solution.</p>
+            </div>
+        </section>
+        
+        <section>
+            <h2># The Solution: C++20 and constexpr</h2>
+
+            <div class="section-content">
+                <div class="numbered-list">
+                    <p>So, how do we solve the linkage problem? We pack the string's content into a simple struct that the compiler can understand at compile time. Two key C++ features make this possible:</p>
+                    
+                    <ul>
+                        <li><p><strong>C++20 -  Class Types as NTTPs:</strong> This is the big one. C++20 finally relaxed the rules and allowed user-defined types to be used as NTTPs, as long as they are structural types. Think of a structural type as a simple data bucket—a struct with public members, no complex inheritance, and a straightforward layout.</p></li>
+                        <li><p><strong>C++11 - constexpr:</strong> This keyword lets us run code at compile time. We need a constexpr constructor to build our string struct during compilation, effectively "lifting" the string's value from runtime into the type system.</p></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2># Crafting the StringLiteral Struct</h2>
+
+            <div class="section-content">
+                <p>Here's the struct that puts these ideas into practice. It's a wrapper that holds the string's characters in a way that satisfies the compiler's rules.</p>
+    
+                <pre class=" code-block"><code class="language-cpp code-block">
+#include &lt;cstddef&gt;         // for size_t
+#include &lt;string_view&gt;     // for std::string_view
+
+template &lt;size_t N&gt;
+struct StringLiteral {
+    char value[N]{};
+
+    // The compile-time constructor
+    constexpr StringLiteral(const char(&str)[N]) noexcept {
+        for (size_t i = 0; i &lt; N; ++i) {
+            value[i] = str[i];
+        }
+    }
+
+    // Handy functions to access the data
+    constexpr std::string_view View() const noexcept { return { value, N - 1 }; }
+    constexpr size_t Size() const noexcept { return N - 1; }
+    // ... other helpers like operator[] ...
+};
+                </code></pre>
+    
+                <div class="list">
+                    <p>Let's break down the important parts:</p>
+
+                    <ul>
+                        <li><p><strong>template &lt;size_t N&gt;:</strong> Just like std::array, our struct is templated on the size of the string (including the null terminator \0).</p></li>
+                        <li><p><strong>char value[N]{};:</strong> This is the simple data bucket. It's a plain C-style array that will hold the characters of our string. Because it's a public member of a simple struct, it meets the "structural type" requirement.</p></li>
+                        <li><p><strong>constexpr StringLiteral(...):</strong> This is the magic. It's a constructor that can run at compile time. When you give it a string literal, it loops through every character and copies it into the value array. This whole process happens before our program even runs.</p></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2># Results: Strings as Template Parameters</h2>
+
+            <div class="section-content">
+                <p>With our StringLiteral struct ready, we can finally do what seemed impossible before. We can pass a string directly as a template argument.</p>
+                <p>Let's define a function that takes a StringLiteral as a template parameter:</p>
+    
+                <pre class=" code-block"><code class="language-cpp code-block">
+#include &lt;iostream&gt;
+
+template &lt;StringLiteral S&gt;
+void logMessage() {
+    std::cout &lt;&lt; "[LOG]: " &lt;&lt; S.View() &lt;&lt; std::endl;
+}
+                </code></pre>
+    
+                <p>Now, for the magic moment (you'll need a C++20 compiler):</p>
+    
+                <pre class=" code-block"><code class="language-cpp code-block">
+int main() {
+    logMessage&lt;"Application Started"&gt;();
+    logMessage&lt;"Processing Data..."&gt;();
+}
+                </code></pre>
+    
+                <div class="list">
+                    <p>When the compiler sees logMessage<"Application Started">(), it performs a beautiful sequence of compile-time operations:</p>
+                    
+                    <ul>
+                        <li><p>It analyzes the literal "Application Started" and determines its type is const char[20].</p></li>
+                        <li><p>It uses this information to call our constexpr constructor, creating a StringLiteral<20> object right then and there.</p></li>
+                        <li><p>This newly created, compile-time object is then used as the template argument S.</p></li>
+                    </ul>
+                </div>
+    
+                <p>All of this is resolved during compilation, giving us zero-overhead, type-safe, compile-time strings.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2># A Touch of Convenience: C++17's CTAD</h2>
+
+            <div class="section-content">
+                <p>While using StringLiteral as a template argument is clean, defining it as a local variable used to be a bit clunky. You had to explicitly provide the size:</p>
+            
+                <pre class=" code-block"><code class="language-cpp code-block">
+// Before C++17, you had to do this:
+StringLiteral&lt;6&gt; myStr{"hello"};                    // Verbose!
+                </code></pre>
+    
+                <p>Thankfully, Class Template Argument Deduction (CTAD), introduced in C++17, simplifies this. CTAD allows the compiler to deduce a class's template arguments from its constructor arguments, just like it does for functions.</p>
+                
+                <p>Because our constructor StringLiteral(const char(&str)[N]) makes the value of N perfectly clear from the input, we can now write:</p>
+            
+                <pre class=" code-block"><code class="language-cpp code-block">
+// With C++17 CTAD, it's this simple:
+StringLiteral myStr{"hello"};                          // The compiler deduces N = 6 automatically!
+                </code></pre>
+    
+                <p>This makes our StringLiteral class feel like a natural, built-in part of the language.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2># Conclusion</h2>
+
+            <div class="section-content">
+                <div class="list">
+                    <p>By standing on the shoulders of giants (the C++ standards committee), we've overcome a classic language limitation. The journey involved combining features from three major C++ releases:</p>
+                    
+                    <ul>
+                        <li><p><strong>constexpr (C++11)</strong> gave us the ability to execute code at compile time.</p></li>
+                        <li><p><strong>CTAD (C++17)</strong> gave us a much cleaner and more intuitive syntax.</p></li>
+                        <li><p><strong>Class Types as NTTPs (C++20)</strong> provided the final key, allowing our custom struct to be passed as a template parameter.</p></li>
+                    </ul>
+                </div>
+    
+                <p>This solution perfectly illustrates how modern C++ continues to deliver powerful features that solve long-standing challenges and dramatically improve the quality of life for developers, especially in the world of template metaprogramming.</p>
+            
+                <p>If you'd like to see the full implementation, this StringLiteral is part of my QkTraits library. Feel free to explore the complete code on GitHub!</p>
+            
+                <a href="https://github.com/Jayantkumar56/QkTraits/blob/master/include/QkTraits/StringLiteral.h" class="link">StringLiteral in QkTraits on GitHub</a>
+            </div>
+        </section>
+
+    </main>
+    <footer class="footer">
+        <div class="footer-top">
+            <div class="footer-section">
+                <h3>Quirk Engine</h3>
+                <p>
+                    <span>A C++ game engine project</span> 
+                    <span>built to learn and grow.</span>
+                </p>
+            </div>
+
+            <div class="footer-section">
+                <h3>Navigation</h3>
+                <div class="links">
+                    <a href="https://github.com/Jayantkumar56/QkTraits/blob/master/include/QkTraits/StringLiteral.h">Source Code</a>
+                    <a href="../index.html">Blogs</a>
+                </div>
+            </div>
+
+            <div class="footer-section">
+                <h3>Socials</h3>
+                <div class="social-icons">
+                    <a href="mailto:name@email.com" class="icon"><img src="../res/Mail.png" alt="Mail"></a>
+                    <a href="https://www.linkedin.com/in/jayant-kumar-singh-ba3b33267/" class="icon"><img src="../res/Linkedin.png" alt="Linkedin"></a>
+                    <a href="https://github.com/Jayantkumar56"><img src="../res/Github.png" alt="Github" class="icon"></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2025 Quirk Engine.</p>
+            <p>Released under the MIT License.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>

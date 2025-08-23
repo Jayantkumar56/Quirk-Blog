@@ -164,7 +164,7 @@ nav ul {
 /* Hero Section */
 
 .hero .flex-container {
-    height: calc(100vh - 6vh - 41px);
+    height: calc(100svh - 6vh - 41px);
     padding: 3vh var(--body-padding);
     flex-direction: column;
     justify-content: space-between;

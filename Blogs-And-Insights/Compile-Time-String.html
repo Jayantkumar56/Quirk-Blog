@@ -245,6 +245,23 @@ StringLiteral myStr{"hello"};                          // The compiler deduces N
             </div>
         </section>
 
+        <section>
+            <h2># Further Notes for the Curious</h2>
+
+            <div class="section-content">
+                <div class="list">
+                    <ul>
+                        <li><p>Before C++20, libraries like <strong>Boost.Hana</strong> and other template metaprogramming techniques simulated compile-time strings using clever tricks (like parameter packs).</p></li>
+                        <li><p><strong>Compilers had uneven support at first:</strong> Clang and GCC adopted class-type NTTPs quickly, while MSVC lagged behind in early versions.</p></li>
+                        <li><p><strong>Real-world use cases go beyond logging:</strong> reflection systems, compile-time configuration, or constexpr lookup tables often rely on strings as NTTPs.</p></li>
+                    </ul>
+                </div>
+    
+                <p>I'll be covering some of these advanced scenarios in upcoming deep dives.</p>
+                <p>Stick around if you're curious about where this goes!</p> 
+            </div>
+        </section>
+
     </main>
     <footer class="footer">
         <div class="footer-top">

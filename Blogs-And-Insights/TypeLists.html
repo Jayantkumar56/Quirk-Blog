@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Title & Description -->
+    <title>TypeLists in C++: A Deep Dive into Compile-Time Metaprogramming</title>
+    <meta name="description" content="A practical guide to building and using TypeLists in modern C++ for compile-time metaprogramming. Covers iteration, invocation, and a complete toolkit of utilities.">
+    <meta name="keywords" content="C++, TypeList, metaprogramming, compile-time, template programming, constexpr, C++20">
+
+    <link rel="canonical" href="https://jayantkumar56.github.io/Quirk-Blog/Blogs-And-Insights/TypeList.html">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="TypeLists in C++: A Deep Dive into Compile-Time Metaprogramming">
+    <meta property="og:description" content="Step-by-step guide to creating and using TypeLists with modern C++ features.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jayantkumar56.github.io/Quirk-Blog/Blogs-And-Insights/TypeList.html">
+    <meta property="og:site_name" content="Quirk Blog">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="TypeLists in C++: A Deep Dive into Compile-Time Metaprogramming">
+    <meta name="twitter:description" content="Step-by-step guide to creating and using TypeLists with modern C++ features.">
+
+    <!-- Theme & Favicon -->
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" type="image/png" sizes="any" href="../res/favicon.png?v=3">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="../styleReset.css">
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="../blog.css">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": "TypeLists in C++: A Deep Dive into Compile-Time Metaprogramming",
+        "description": "A practical guide to building and using TypeLists in modern C++ for compile-time metaprogramming. Covers iteration, invocation, and a complete toolkit of utilities.",
+        "author": { "@type": "Person", "name": "Jayant Kumar Singh" },
+        "datePublished": "2025-08-23",
+        "dateModified": "2025-08-23",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://jayantkumar56.github.io/Quirk-Blog/Blogs-And-Insights/TypeList.html"
+        }
+    }
+    </script>
+</head>
+
+<body>
+    <header id="hero">
+        <nav class="flex-container">
+            <ul role="list" class="flex-container">
+                <li><a href="https://github.com/Jayantkumar56/QkTraits/blob/master" class="button btn-github"><p>Git-Hub</p></a></li>
+                <li><a href="../index.html" class="button btn-home"><p>Home</p></a></li>
+            </ul>
+
+            <div  id="toggle-theme" class="color-mode-toggle">
+            </div>
+        </nav>
+
+        <div class="hero">
+            <h1 class="main-heading">
+                TypeLists: A Deep Dive into C++ Meta-Programming
+            </h1>
+
+            <div class="hero-content">
+                <p>In the world of modern C++, template metaprogramming is a powerful tool for building highly generic, safe, and performant libraries. At the heart of many advanced techniques lies a simple yet profound concept: the TypeList.</p>    
+                <p>A TypeList is a compile-time container that treats types themselves as data. While the concept is straightforward, building a powerful TypeList was historically a challenge. Thanks to modern C++ features, we can now create a solution that is both elegant and robust.</p>
+                <p>In this guide, we'll construct a full-featured TypeList from the ground up, exploring everything from fundamental operations to advanced compile-time algorithms, all while focusing on creating a safe and intuitive API.</p>
+            
+                <div class="note">
+                    <h3>About the code:</h3>
+                    <p>Snippets in this article focus on ideas and intentionally omit headers and scaffolding to keep things readable. If you want full, compilable code with all utilities, check the implementation in:</p>
+                    <a href="https://github.com/Jayantkumar56/QkTraits"  class="link">QkTraits</a> 
+                    <p>Or the full example section at the end.</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section>
+            <h2># The Foundation</h2>
+
+            <div class="section-content">
+                <p>At its heart, a TypeList is just a simple, empty wrapper around a C++ variadic template parameter pack. It holds no runtime data; its entire existence is within the type system.</p>
+
+                <pre class=" code-block"><code class="language-cpp code-block">
+// The basic structure. It's just a name for a pack of types.
+template&lt;typename ...Types&gt;
+struct TypeList {};
+                </code></pre>
+    
+                <p>To make our TypeList safe, we also need a way to signal when an operation fails (like getting the first element of an empty list). We won't use void because of ambiguity; instead, we'll define a dedicated, robust InvalidType.</p>
+                
+                <pre class=" code-block"><code class="language-cpp code-block">
+// A special type to indicate a failed compile-time operation.
+struct InvalidType {
+    InvalidType() = delete; // Prevents misuse
+    // ... plus other deletions and a static_assert for clear errors
+};
+                </code></pre>
+
+                <p>With this foundation, we can start adding behavior.</p>
+            </div>
+        </section>
+        
+        <section>
+            <h2># Bringing TypeLists to Life: Iteration & Invocation</h2>
+
+            <div class="section-content">
+                <p>A list isn't useful if you can't do anything with it. The first and most important operations are iterating over the types and unpacking them.</p>
+                
+                <h3>ForEach: The Compile-Time Loop</h3>
+
+                <p>ForEach lets us run a function for every single type in our list. It uses a C++17 fold expression to expand the code into a series of function calls at compile time.</p>
+                
+                <pre class=" code-block"><code class="language-cpp code-block">
+// Inside TypeList...
+template&lt;typename Function, typename ...Args&gt;
+constexpr static void ForEach(Function&amp;&amp; func, Args&amp;&amp; ...args) {
+    (func.template operator()&lt;Types&gt;(args...), ...);
+}
+                </code></pre>
+
+                <p>Example: Let's say in a game engine we want to register all our components.</p>
+
+                <pre class=" code-block"><code class="language-cpp code-block">
+struct Position { /*...*/ };
+struct Velocity { /*...*/ };
+struct Sprite   { /*...*/ };
+using MyComponents = TypeList&lt;Position, Velocity, Sprite&gt;;
+
+// A generic lambda to "register" a component
+auto register_component = []&lt;typename Comp&gt;() {
+    std::cout &lt;&lt; "Registering component: " &lt;&lt; typeid(Comp).name() &lt;&lt; std::endl;
+};
+
+MyComponents::ForEach(register_component);
+                </code></pre>
+
+                <h3>InvokeWithTypesExpanded: Unpacking the List</h3>
+
+                <p>Sometimes, you need to pass all the types in your list as template arguments to another utility, like std::variant. This function acts as a bridge.</p>
+            
+                <pre class=" code-block"><code class="language-cpp code-block">
+// Inside TypeList...
+template&lt;typename Function, typename ...Args&gt;
+constexpr static decltype(auto) InvokeWithTypesExpanded(Function&amp;&amp; func, Args&amp;&amp; ...args) {
+    return func.template operator()&lt;Types...&gt;(std::forward&lt;Args&gt;(args)...);
+}
+                </code></pre>
+
+                <p>Example: Creating a std::variant that can hold any of our component types.</p>
+
+                <pre class=" code-block"><code class="language-cpp code-block">
+auto make_variant_factory = []&lt;typename... T&gt;() {
+    return std::variant&lt;T...&gt;();
+};
+
+// Unpacks Position, Velocity, Sprite into the factory's T... pack
+auto component_variant = MyComponents::InvokeWithTypesExpanded(make_variant_factory);
+
+// The type is now std::variant&lt;Position, Velocity, Sprite&gt;
+                </code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>The Utility Belt: Building the TypeList Toolkit</h2>
+
+            <div class="section-content">
+                <p>With the foundation laid, we can build out a complete toolkit. We'll explore the implementation of a few key utilities to understand the common patterns used in C++ metaprogramming: partial specialization, the strict template pattern, and modern constexpr evaluation.</p>
+            
+                <h3>Accessing the Front: The Front Utility</h3>
+    
+                <p><strong>Goal:</strong> Get the very first type from the list, or InvalidType if the list is empty.</p>
+                <p><strong>How It Works:</strong> We use a helper struct in our Internal namespace and partial template specialization. We provide a general template that handles the failure case (an empty list) and a more specific one that pattern-matches a non-empty list.</p>
+            
+                <pre class=" code-block"><code class="language-cpp code-block">
+// Inside TypeList...
+using Front = typename Internal::FrontImpl&lt;Types...&gt;::Type;
+
+// --- Implementation in Internal namespace ---
+
+// This general template is chosen if no other specialization matches (i.e., for an empty list).
+template&lt;typename... Types&gt;
+struct FrontImpl {
+    using Type = InvalidType;
+};
+
+// This partial specialization is chosen for any list with at least one element.
+template&lt;typename Type1, typename... Types&gt;
+struct FrontImpl&lt;Type1, Types...&gt; {
+    // It captures the first type as 'Type1' and exposes it.
+    using Type = Type1;
+};
+                </code></pre>
+
+                <p>The compiler automatically selects the best-matching specialization. For TypeList&lt;int, char&gt;, the second version is a better match. For TypeList&lt;&gt;, only the first one is viable.</p>
+            
+                <h3>Adding to the List: The PushFront Utility</h3>
+
+                <p><strong>Goal:</strong> Create a new TypeList by adding an element to the front of an existing one.</p>
+                <p><strong>How It Works:</strong> To ensure this operation only works on a TypeList, we use the strict template pattern. We declare a primary template but leave it incomplete. The only definition we provide is a partial specialization that exclusively accepts a TypeList.</p>
+            
+                <pre class=" code-block"><code class="language-cpp code-block">
+// 1. Incomplete primary template. If a non-TypeList is passed, this is chosen,
+//    and compilation fails because it has no ::Type member.
+template&lt;typename List, typename Element&gt;
+struct PushFront;
+
+// 2. The only actual implementation.
+template&lt;typename Element, typename... Elements&gt;
+struct PushFront&lt;TypeList&lt;Elements...&gt;, Element&gt; {
+    // Unpacks the existing types and prepends the new element.
+    using Type = TypeList&lt;Element, Elements...&gt;;
+};
+
+// 3. A convenient alias for users.
+template&lt;typename List, typename Element&gt;
+using PushFront_T = typename PushFront&lt;List, Element&gt;::Type;
+                </code></pre>
+                
+                <h3>Finding a Type: The IndexOf Utility</h3>
+
+                <p><strong>Goal:</strong> Find the compile-time index of a type T in the list.</p>
+                <p><strong>How It Works:</strong> Instead of complex template recursion, we can use a modern constexpr immediately-invoked lambda expression (IIFE). This is easier to read and write.</p>
+            
+                <pre class=" code-block"><code class="language-cpp code-block">
+// Inside TypeList...
+template&lt;typename T&gt;
+constexpr static size_t IndexOf = [] {
+    // 1. Use if constexpr to handle the empty case cleanly.
+    if constexpr (IsEmpty) {
+        return static_cast&lt;size_t&gt;(-1);
+    } else {
+        // 2. Create a compile-time array of booleans.
+        constexpr std::array matches = { std::is_same_v&lt;T, Types&gt;... };
+
+        // 3. Loop over the array at compile time to find the first 'true'.
+        for (size_t i = 0; i &lt; Size; ++i) {
+            if (matches[i]) {
+                return i; // Found it!
+            }
+        }
+        return static_cast&lt;size_t&gt;(-1); // Not found
+    }
+}();
+                </code></pre>
+
+                <p>This entire function runs during compilation, baking the resulting index directly into your code as a constant.</p>
+            
+                <h3>The Full Toolkit</h3>
+
+                <p>Using these same techniques—partial specialization, recursion, if constexpr, and pack expansion—the full library also provides <strong>Back, Get&lt;N&gt;, Contains&lt;T&gt;, PushBack_T, PopFront_T, PopBack_T, Concat_T, Transform_T, and Filter_T,</strong> giving you a complete set of operations for any compile-time task.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2># Conclusion</h2>
+
+            <div class="section-content">
+                <p>From a simple struct, we've built a powerful, safe, and modern TypeList library. This tool allows you to shift logic from runtime to compile time, catching errors earlier, reducing boilerplate, and creating highly generic systems. It's a perfect example of the expressive power that modern C++ puts in our hands.</p>
+                
+                <p>If you'd like to see the full implementation and the comprehensive unit tests, you can find the complete code in the QkTraits library on GitHub.</p>
+
+                <a href="https://github.com/Jayantkumar56/QkTraits/blob/master/include/QkTraits/TypeList.h" class="link">TypeList in QkTraits on GitHub</a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Full Example</h2>
+
+            <div class="section-content">
+                <p>
+                Here’s a minimal, compilable demo putting together the ideas from this article. 
+                It shows how <code>ForEach</code> and <code>InvokeWithTypesExpanded</code> can be used in practice.
+                </p>
+
+                <pre class="code-block"><code class="language-cpp code-block">
+#include &lt;iostream&gt;
+#include &lt;variant&gt;
+#include &lt;typeinfo&gt;
+
+// Simplified TypeList (conceptual)
+template&lt;typename... Types&gt;
+struct TypeList {
+    template&lt;typename Func&gt;
+    static void ForEach(Func&amp;&amp; f) {
+        (f.template operator()&lt;Types&gt;(), ...);
+    }
+
+    template&lt;typename Func&gt;
+    static auto InvokeWithTypesExpanded(Func&amp;&amp; f) {
+        return f.template operator()&lt;Types...&gt;();
+    }
+};
+
+struct Position {};
+struct Velocity {};
+struct Sprite {};
+
+using MyComponents = TypeList&lt;Position, Velocity, Sprite&gt;;
+
+int main() {
+    // ForEach
+    MyComponents::ForEach([]&lt;typename T&gt;() {
+        std::cout &lt;&lt; "Registering: " &lt;&lt; typeid(T).name() &lt;&lt; "\n";
+    });
+
+    // InvokeWithTypesExpanded
+    auto makeVariant = []&lt;typename... T&gt;() { return std::variant&lt;T...&gt;{}; };
+    auto v = MyComponents::InvokeWithTypesExpanded(makeVariant);
+}
+                </code></pre>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-top">
+            <div class="footer-section">
+                <h3>Quirk Engine</h3>
+                <p>
+                    <span>A C++ game engine project</span> 
+                    <span>built to learn and grow.</span>
+                </p>
+            </div>
+
+            <div class="footer-section">
+                <h3>Navigation</h3>
+                <div class="links">
+                    <a href="https://github.com/Jayantkumar56/QkTraits/blob/master/include/QkTraits/TypeList.h">Source Code</a>
+                    <a href="../index.html">Blogs</a>
+                </div>
+            </div>
+
+            <div class="footer-section">
+                <h3>Socials</h3>
+                <div class="social-icons">
+                    <a href="mailto:jayantkumar.dev&#64;gmail.com" class="icon"><img src="../res/Mail.png" alt="Mail"></a>
+                    <a href="https://www.linkedin.com/in/jayant-kumar-singh-ba3b33267/" class="icon"><img src="../res/Linkedin.png" alt="Linkedin"></a>
+                    <a href="https://github.com/Jayantkumar56"><img src="../res/Github.png" alt="Github" class="icon"></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2025 Quirk Engine.</p>
+            <p>Released under the MIT License.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>

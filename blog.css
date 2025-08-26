@@ -10,8 +10,13 @@
 
     --main-heading-txt-color: #2D333B;
     
-    --code-block-bg-color: #B8B9B8;
-    --footer-bg-color: #bfc7c2;
+    --code-block-bg-color: #b5d3b5;
+    --footer-bg-color: #71937d;
+
+    --note-bg-color: #6cd693;
+
+    --copy-btn-color: #000000;
+    --copy-btn-bg-color: #02b817;
     
     --btn-bg1-color: #dfe1e000;
     --btn-bg2-color: #dfe1e000;
@@ -30,6 +35,7 @@
     --fs-300: 1.5rem;      /* 24px */
     --fs-250: 1.25rem;     /* 20px */
     --fs-200: 1rem;        /* 16px */
+    --fs-150: 0.8rem;      /* 12.8px  */
     --fs-100: 0.5rem;      /* 8px  */
 }
 
@@ -41,7 +47,8 @@
         --fs-400: 1.5rem;     
         --fs-300: 1.0rem;  
         --fs-250: 0.95rem;   
-        --fs-200: 0.751rem;   
+        --fs-200: 0.751rem;  
+        --fs-150: 0.6rem;
         --fs-100: 0.5rem;   
         
         --body-padding: 5vw;
@@ -59,6 +66,11 @@
     
     --code-block-bg-color: #33373C;
     --footer-bg-color: #000000;
+
+    --note-bg-color: #1e293b;
+
+    --copy-btn-color: #000000;
+    --copy-btn-bg-color: #0095ff;
     
     --btn-bg1-color: #9CF8BF;
     --btn-bg2-color: #BEFA83;
@@ -96,6 +108,51 @@ body p {
 
 /* Generic Style classes */
 
+.note {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background-color: var(--note-bg-color);
+    border-left: 4px solid #3b82f6;
+    padding: 1.2rem;
+    margin: 1.5rem 0;
+    border-radius: 0.5rem;
+}
+
+.note strong {
+    color: #ffffff; /* ensure "About the code:" pops */
+}
+
+.copy-button {
+    position: sticky;
+    height: fit-content;
+    top: 8px;
+    right: 8px;
+    border: none;
+    font-size: var(--fs-150);
+    font-weight: 700;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    border-radius: 4px;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+    background: var(--copy-btn-bg-color);
+    color: var(--copy-btn-color);
+}
+
+.copy-button:hover {
+    opacity: 0.8;
+}
+
+.button-wrapper {
+    padding: 6px 0;
+    position: absolute;
+    top: 0;
+    right: 8px;
+    width: fit-content;
+    height: 100%;
+}
+
 .flex-container {
     display: flex;
     align-items: center;
@@ -116,6 +173,7 @@ body p {
 }
 
 .link {
+    width: fit-content;
     color: var(--link-color);
     font-size: var(--fs-300);
     font-weight: bold;
@@ -151,6 +209,12 @@ section h2 {
     margin-bottom: 0.6em;
 }
 
+section h3, .hero h3 {
+    font-size: var(--fs-300);
+    font-weight: bold;
+}
+
+
 .list ul {
     padding-left: 1.2em;
 }
@@ -171,9 +235,12 @@ ul > li::marker {
 }
 
 .code-block {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
     width: 100%;
     background-color: var(--code-block-bg-color);
-    padding: 0 1em;
+    padding: 8px 1em;
     border-radius: 10px;
     word-spacing: 0.3em;
 }

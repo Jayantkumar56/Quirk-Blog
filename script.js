@@ -51,3 +51,27 @@ toggleBtn.addEventListener('click', () => {
         }
     }
 });
+
+document.querySelectorAll("pre.code-block").forEach((block) => {
+    const buttonWrapper = document.createElement("div");
+    buttonWrapper.classList.add("button-wrapper");
+    block.appendChild(buttonWrapper);
+
+    // Create button
+    const button = document.createElement("button");
+    button.innerText = "Copy";
+    button.classList.add("copy-button");
+    buttonWrapper.appendChild(button);
+
+    // Copy on click
+    button.addEventListener("click", async () => {
+        const code = block.innerText;
+        try {
+            await navigator.clipboard.writeText(code);
+            button.innerText = "Copied!";
+            setTimeout(() => button.innerText = "Copy", 2000);
+        } catch (err) {
+            console.error("Failed to copy: ", err);
+        }
+    });
+});

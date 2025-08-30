@@ -75,6 +75,7 @@
             
                 <div class="note">
                     <h3>About the code:</h3>
+                    <p><strong>Target standard:</strong> examples assume C++20 (templated lambdas, fold expressions).</p>
                     <p>Snippets in this article focus on ideas and intentionally omit headers and scaffolding to keep things readable. If you want full, compilable code with all utilities, check the implementation in:</p>
                     <a href="https://github.com/Jayantkumar56/QkTraits"  class="link">QkTraits</a> 
                     <p>Or the full example section at the end.</p>
@@ -85,7 +86,7 @@
 
     <main>
         <section>
-            <h2># The Foundation</h2>
+            <h2>The Foundation</h2>
 
             <div class="section-content">
                 <p>At its heart, a TypeList is just a simple, empty wrapper around a C++ variadic template parameter pack. It holds no runtime data; its entire existence is within the type system.</p>
@@ -96,13 +97,12 @@ template&lt;typename ...Types&gt;
 struct TypeList {};
                 </code></pre>
     
-                <p>To make our TypeList safe, we also need a way to signal when an operation fails (like getting the first element of an empty list). We won't use void because of ambiguity; instead, we'll define a dedicated, robust InvalidType.</p>
+                <p>To make our TypeList safe, we need a clear way to signal failed operations (like requesting the first element of an empty list). Using void is ambiguous and can silently match overloads, so instead we define a dedicated sentinel type, InvalidType, that makes errors explicit at compile time.</p>
                 
                 <pre class=" code-block"><code class="language-cpp code-block">
 // A special type to indicate a failed compile-time operation.
 struct InvalidType {
     InvalidType() = delete; // Prevents misuse
-    // ... plus other deletions and a static_assert for clear errors
 };
                 </code></pre>
 
@@ -111,7 +111,7 @@ struct InvalidType {
         </section>
         
         <section>
-            <h2># Bringing TypeLists to Life: Iteration & Invocation</h2>
+            <h2>Bringing TypeLists to Life: Iteration & Invocation</h2>
 
             <div class="section-content">
                 <p>A list isn't useful if you can't do anything with it. The first and most important operations are iterating over the types and unpacking them.</p>
@@ -121,7 +121,7 @@ struct InvalidType {
                 <p>ForEach lets us run a function for every single type in our list. It uses a C++17 fold expression to expand the code into a series of function calls at compile time.</p>
                 
                 <pre class=" code-block"><code class="language-cpp code-block">
-// Inside TypeList...
+// Inside TypeList&lt;Types...&gt;
 template&lt;typename Function, typename ...Args&gt;
 constexpr static void ForEach(Function&amp;&amp; func, Args&amp;&amp; ...args) {
     (func.template operator()&lt;Types&gt;(args...), ...);
@@ -132,16 +132,16 @@ constexpr static void ForEach(Function&amp;&amp; func, Args&amp;&amp; ...args) {
 
                 <pre class=" code-block"><code class="language-cpp code-block">
 struct Position { /*...*/ };
-struct Velocity { /*...*/ };
 struct Sprite   { /*...*/ };
+struct Velocity { /*...*/ };
 using MyComponents = TypeList&lt;Position, Velocity, Sprite&gt;;
 
 // A generic lambda to "register" a component
-auto register_component = []&lt;typename Comp&gt;() {
+auto registerComponent = []&lt;typename Comp&gt;() {
     std::cout &lt;&lt; "Registering component: " &lt;&lt; typeid(Comp).name() &lt;&lt; std::endl;
 };
 
-MyComponents::ForEach(register_component);
+MyComponents::ForEach(registerComponent);
                 </code></pre>
 
                 <h3>InvokeWithTypesExpanded: Unpacking the List</h3>
@@ -149,7 +149,7 @@ MyComponents::ForEach(register_component);
                 <p>Sometimes, you need to pass all the types in your list as template arguments to another utility, like std::variant. This function acts as a bridge.</p>
             
                 <pre class=" code-block"><code class="language-cpp code-block">
-// Inside TypeList...
+// Inside TypeList&lt;Types...&gt;
 template&lt;typename Function, typename ...Args&gt;
 constexpr static decltype(auto) InvokeWithTypesExpanded(Function&amp;&amp; func, Args&amp;&amp; ...args) {
     return func.template operator()&lt;Types...&gt;(std::forward&lt;Args&gt;(args)...);
@@ -159,12 +159,12 @@ constexpr static decltype(auto) InvokeWithTypesExpanded(Function&amp;&amp; func,
                 <p>Example: Creating a std::variant that can hold any of our component types.</p>
 
                 <pre class=" code-block"><code class="language-cpp code-block">
-auto make_variant_factory = []&lt;typename... T&gt;() {
+auto makeVariantFactory = []&lt;typename... T&gt;() {
     return std::variant&lt;T...&gt;();
 };
 
 // Unpacks Position, Velocity, Sprite into the factory's T... pack
-auto component_variant = MyComponents::InvokeWithTypesExpanded(make_variant_factory);
+auto componentVariant = MyComponents::InvokeWithTypesExpanded(makeVariantFactory);
 
 // The type is now std::variant&lt;Position, Velocity, Sprite&gt;
                 </code></pre>
@@ -183,23 +183,24 @@ auto component_variant = MyComponents::InvokeWithTypesExpanded(make_variant_fact
                 <p><strong>How It Works:</strong> We use a helper struct in our Internal namespace and partial template specialization. We provide a general template that handles the failure case (an empty list) and a more specific one that pattern-matches a non-empty list.</p>
             
                 <pre class=" code-block"><code class="language-cpp code-block">
-// Inside TypeList...
-using Front = typename Internal::FrontImpl&lt;Types...&gt;::Type;
-
 // --- Implementation in Internal namespace ---
+namespace Internal {
+    // This general template is chosen if no other specialization matches (i.e., for an empty list).
+    template&lt;typename... Types&gt;
+    struct FrontImpl {
+        using Type = InvalidType;
+    };
 
-// This general template is chosen if no other specialization matches (i.e., for an empty list).
-template&lt;typename... Types&gt;
-struct FrontImpl {
-    using Type = InvalidType;
-};
+    // This partial specialization is chosen for any list with at least one element.
+    template&lt;typename Type1, typename... Types&gt;
+    struct FrontImpl&lt;Type1, Types...&gt; {
+        // It captures the first type as 'Type1' and exposes it.
+        using Type = Type1;
+    };  
+}
 
-// This partial specialization is chosen for any list with at least one element.
-template&lt;typename Type1, typename... Types&gt;
-struct FrontImpl&lt;Type1, Types...&gt; {
-    // It captures the first type as 'Type1' and exposes it.
-    using Type = Type1;
-};
+// Inside TypeList&lt;Types...&gt;
+using Front = typename Internal::FrontImpl&lt;Types...&gt;::Type;
                 </code></pre>
 
                 <p>The compiler automatically selects the best-matching specialization. For TypeList&lt;int, char&gt;, the second version is a better match. For TypeList&lt;&gt;, only the first one is viable.</p>
@@ -226,31 +227,71 @@ struct PushFront&lt;TypeList&lt;Elements...&gt;, Element&gt; {
 template&lt;typename List, typename Element&gt;
 using PushFront_T = typename PushFront&lt;List, Element&gt;::Type;
                 </code></pre>
+
+                <h3>Removing from the List: The PopBack Utility</h3>
+
+                <p><strong>Goal:</strong> Create a new TypeList by removing the <strong>last</strong> element from an existing one.</p>
+                <p><strong>How It Works:</strong> This operation is more complex because we can't directly access the "last" type in a parameter pack. The solution is a <strong>recursive template</strong>. It works by recursively peeling off the first element (Head), processing the rest of the list (Tail), and then adding the Head back to the front of the result. When the recursion reaches the base case—a list with just one element—it returns an empty list, effectively "dropping" the original last element. The implementation details are hidden in an Internal namespace, which is a common C++ practice.</p>
                 
+                <pre class=" code-block"><code class="language-cpp code-block">
+// --- Implementation Details ---
+namespace Internal {
+    // Primary template for the implementation (forward declaration).
+    template&lt;typename List&gt;
+    struct PopBackImpl;
+
+    // The recursive step:
+    // Peels off Head, calls PopBackImpl on the Tail, and reconstructs the list.
+    template&lt;typename Head, typename... Tail&gt;
+    struct PopBackImpl&lt;TypeList&lt;Head, Tail...&gt;&gt; {
+        using Type = PushFront_T&lt;typename PopBackImpl&lt;TypeList&lt;Tail...&gt;&gt;::Type, Head&gt;;
+    };
+
+    // Base case: When only one element is left, the result is an empty list.
+    template&lt;typename Last&gt;
+    struct PopBackImpl&lt;TypeList&lt;Last&gt;&gt; {
+        using Type = TypeList&lt;&gt;;
+    };
+
+    // Edge case: Popping from an empty list results in an empty list.
+    template&lt;&gt;
+    struct PopBackImpl&lt;TypeList&lt;&gt;&gt; {
+        using Type = TypeList&lt;&gt;;
+    };
+} // namespace Internal
+
+// The public-facing struct that users interact with.
+template&lt;typename List&gt;
+struct PopBack {
+using Type = typename Internal::PopBackImpl&lt;List&gt;::Type;
+};
+
+// A convenient alias for users.
+template&lt;typename List&gt;
+using PopBack_T = typename PopBack&lt;List&gt;::Type;
+
+</code></pre>
+
                 <h3>Finding a Type: The IndexOf Utility</h3>
 
                 <p><strong>Goal:</strong> Find the compile-time index of a type T in the list.</p>
                 <p><strong>How It Works:</strong> Instead of complex template recursion, we can use a modern constexpr immediately-invoked lambda expression (IIFE). This is easier to read and write.</p>
             
                 <pre class=" code-block"><code class="language-cpp code-block">
-// Inside TypeList...
-template&lt;typename T&gt;
-constexpr static size_t IndexOf = [] {
-    // 1. Use if constexpr to handle the empty case cleanly.
-    if constexpr (IsEmpty) {
-        return static_cast&lt;size_t&gt;(-1);
-    } else {
-        // 2. Create a compile-time array of booleans.
-        constexpr std::array matches = { std::is_same_v&lt;T, Types&gt;... };
+// If found returns first occurence of a type in the list
+// If not found returns NPos
+template &lt;typename T&gt;
+static constexpr std::size_t IndexOf = [] {
+    // Create a compile-time array of booleans.
+    constexpr std::array&lt;bool, sizeof...(Types)&gt; matches{ std::is_same_v&lt;T, Types&gt;... };
 
-        // 3. Loop over the array at compile time to find the first 'true'.
-        for (size_t i = 0; i &lt; Size; ++i) {
-            if (matches[i]) {
-                return i; // Found it!
-            }
-        }
-        return static_cast&lt;size_t&gt;(-1); // Not found
+    // Loop over the array at compile time to find the first 'true'.
+    for (std::size_t i = 0; i &lt; matches.size(); ++i) {
+        if (matches[i]) 
+            return i;       // found
     }
+
+    return NPos;          // not found
 }();
                 </code></pre>
 
@@ -258,12 +299,12 @@ constexpr static size_t IndexOf = [] {
             
                 <h3>The Full Toolkit</h3>
 
-                <p>Using these same techniques—partial specialization, recursion, if constexpr, and pack expansion—the full library also provides <strong>Back, Get&lt;N&gt;, Contains&lt;T&gt;, PushBack_T, PopFront_T, PopBack_T, Concat_T, Transform_T, and Filter_T,</strong> giving you a complete set of operations for any compile-time task.</p>
+                <p>Using these same techniques—partial specialization, recursion, if constexpr, and pack expansion—the full library also provides <strong>Back, Get&lt;N&gt;, Contains&lt;T&gt;, PushBack_T, PopFront_T, PopBack_T, Concat_T, Transform_T, Reverse_T, and Filter_T,</strong> giving you a complete set of operations for any compile-time task.</p>
             </div>
         </section>
 
         <section>
-            <h2># Conclusion</h2>
+            <h2>Conclusion</h2>
 
             <div class="section-content">
                 <p>From a simple struct, we've built a powerful, safe, and modern TypeList library. This tool allows you to shift logic from runtime to compile time, catching errors earlier, reducing boilerplate, and creating highly generic systems. It's a perfect example of the expressive power that modern C++ puts in our hands.</p>
@@ -303,8 +344,8 @@ struct TypeList {
 };
 
 struct Position {};
+struct Sprite   {};
 struct Velocity {};
-struct Sprite {};
 
 using MyComponents = TypeList&lt;Position, Velocity, Sprite&gt;;
 

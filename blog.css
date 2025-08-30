@@ -209,11 +209,14 @@ section h2 {
     margin-bottom: 0.6em;
 }
 
+section h2::before {
+    content: '# ';
+}
+
 section h3, .hero h3 {
     font-size: var(--fs-300);
     font-weight: bold;
 }
-
 
 .list ul {
     padding-left: 1.2em;

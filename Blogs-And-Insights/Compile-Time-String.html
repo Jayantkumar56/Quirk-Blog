@@ -73,7 +73,7 @@
 
     <main>
         <section>
-            <h2># The Core Problem: Why Can't We Use String Literals?</h2>
+            <h2>The Core Problem: Why Can't We Use String Literals?</h2>
 
             <div class="section-content">
                 <p>To understand why we need our StringLiteral class, we first need to look at Non-Type Template Parameters (NTTPs). These aren't new, they've been a fundamental part of C++ since C++98.</p>
@@ -106,7 +106,7 @@ std::array&lt;int, 10&gt; my_array;
         </section>
         
         <section>
-            <h2># The Solution: C++20 and constexpr</h2>
+            <h2>The Solution: C++20 and constexpr</h2>
 
             <div class="section-content">
                 <div class="numbered-list">
@@ -121,7 +121,7 @@ std::array&lt;int, 10&gt; my_array;
         </section>
 
         <section>
-            <h2># Crafting the StringLiteral Struct</h2>
+            <h2>Crafting the StringLiteral Struct</h2>
 
             <div class="section-content">
                 <p>Here's the struct that puts these ideas into practice. It's a wrapper that holds the string's characters in a way that satisfies the compiler's rules.</p>
@@ -161,7 +161,7 @@ struct StringLiteral {
         </section>
 
         <section>
-            <h2># Results: Strings as Template Parameters</h2>
+            <h2>Results: Strings as Template Parameters</h2>
 
             <div class="section-content">
                 <p>With our StringLiteral struct ready, we can finally do what seemed impossible before. We can pass a string directly as a template argument.</p>
@@ -200,7 +200,7 @@ int main() {
         </section>
 
         <section>
-            <h2># A Touch of Convenience: C++17's CTAD</h2>
+            <h2>A Touch of Convenience: C++17's CTAD</h2>
 
             <div class="section-content">
                 <p>While using StringLiteral as a template argument is clean, defining it as a local variable used to be a bit clunky. You had to explicitly provide the size:</p>
@@ -224,7 +224,7 @@ StringLiteral myStr{"hello"};                          // The compiler deduces N
         </section>
 
         <section>
-            <h2># Conclusion</h2>
+            <h2>Conclusion</h2>
 
             <div class="section-content">
                 <div class="list">
@@ -246,7 +246,7 @@ StringLiteral myStr{"hello"};                          // The compiler deduces N
         </section>
 
         <section>
-            <h2># Further Notes for the Curious</h2>
+            <h2>Further Notes for the Curious</h2>
 
             <div class="section-content">
                 <div class="list">
